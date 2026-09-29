@@ -4,6 +4,8 @@ services:
       context: .
       dockerfile: Dockerfile
     restart: unless-stopped
+    # DEBUG: list files, try startup, capture exit code, stay alive
+    command: ["sh", "-c", "ls -la apps/web/startup.mjs; echo '---'; node apps/web/startup.mjs; echo \"EXIT CODE: $?\"; sleep infinity"]
     environment:
       DATABASE_URL: postgresql://hms:hms@postgres:5432/hms
       JWT_SECRET: ${JWT_SECRET}
