@@ -4,8 +4,6 @@ services:
       context: .
       dockerfile: Dockerfile
     restart: unless-stopped
-    ports:
-      - "3100:3100"
     environment:
       DATABASE_URL: postgresql://hms:hms@postgres:5432/hms
       JWT_SECRET: ${JWT_SECRET}
