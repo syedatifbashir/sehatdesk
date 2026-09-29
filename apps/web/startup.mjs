@@ -2,14 +2,21 @@
 import net from "node:net";
 import { spawnSync, spawn } from "node:child_process";
 
-const DB_HOST = "postgres";
+const DB_URL = process.env.DATABASE_URL || "";
+const dbHost = (() => {
+  try {
+    return new URL(DB_URL.replace(/^postgres:/, "postgresql:")).hostname;
+  } catch {
+    return "postgres";
+  }
+})();
 const DB_PORT = 5432;
 
-console.log("[startup] waiting for postgres...");
+console.log(`[startup] waiting for postgres at ${dbHost}:${DB_PORT}...`);
 await new Promise((resolve, reject) => {
   const t0 = Date.now();
   (function tryConnect() {
-    const s = net.connect(DB_PORT, DB_HOST);
+    const s = net.connect(DB_PORT, dbHost);
     s.on("connect", () => {
       s.end();
       console.log("[startup] postgres reachable");
