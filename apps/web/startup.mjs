@@ -62,10 +62,9 @@ if (hospitals === 0) {
 }
 
 console.log("[startup] starting next...");
-const next = spawn("pnpm", ["--filter", "@hms/web", "start", "--", "-p", "3100"], {
+const next = spawn("pnpm", ["--filter", "@hms/web", "start"], {
   stdio: "inherit",
-  env: process.env,
-  cwd: "/app",
+  env: { ...process.env, PORT: "3100" },
 });
 next.on("exit", (code) => {
   console.log(`[startup] next exited with code ${code}`);
