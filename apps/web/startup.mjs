@@ -2,6 +2,12 @@
 import net from "node:net";
 import { spawnSync, spawn } from "node:child_process";
 
+function sleepForever() {
+  console.log("[startup] entering sleep (debug mode) — container staying alive");
+  setInterval(() => {}, 60000);
+}
+
+try {
 const DB_URL = process.env.DATABASE_URL || "";
 const dbHost = (() => {
   try {
@@ -22,7 +28,8 @@ await new Promise((resolve, reject) => {
       console.log("[startup] postgres reachable");
       resolve();
     });
-    s.on("error", () => {
+    s.on("error", (e) => {
+      console.log(`[startup] db connect error: ${e.message}`);
       if (Date.now() - t0 > 120000) reject(new Error("postgres not reachable after 120s"));
       else setTimeout(tryConnect, 2000);
     });
@@ -30,10 +37,12 @@ await new Promise((resolve, reject) => {
 });
 
 console.log("[startup] running migrations...");
-spawnSync("./node_modules/.bin/prisma", ["migrate", "deploy", "--schema", "packages/db/prisma/schema.prisma"], {
+const mig = spawnSync("./node_modules/.bin/prisma", ["migrate", "deploy", "--schema", "packages/db/prisma/schema.prisma"], {
   stdio: "inherit",
   env: process.env,
 });
+console.log(`[startup] migrate exit code: ${mig.status}`);
+if (mig.status !== 0) throw new Error(`prisma migrate deploy failed with code ${mig.status}`);
 
 const { PrismaClient } = await import("@prisma/client");
 const prisma = new PrismaClient();
@@ -42,10 +51,12 @@ await prisma.$disconnect();
 
 if (hospitals === 0) {
   console.log("[startup] empty database — seeding demo data...");
-  spawnSync("./node_modules/.bin/prisma", ["db", "seed", "--schema", "packages/db/prisma/schema.prisma"], {
+  const seed = spawnSync("./node_modules/.bin/prisma", ["db", "seed", "--schema", "packages/db/prisma/schema.prisma"], {
     stdio: "inherit",
     env: process.env,
   });
+  console.log(`[startup] seed exit code: ${seed.status}`);
+  if (seed.status !== 0) throw new Error(`prisma db seed failed with code ${seed.status}`);
 } else {
   console.log(`[startup] database already has ${hospitals} hospital(s) — skipping seed`);
 }
@@ -55,4 +66,16 @@ const next = spawn("./node_modules/.bin/next", ["start", "apps/web", "-p", "3100
   stdio: "inherit",
   env: process.env,
 });
-next.on("exit", (code) => process.exit(code ?? 1));
+next.on("exit", (code) => {
+  console.log(`[startup] next exited with code ${code}`);
+  sleepForever();
+});
+next.on("error", (e) => {
+  console.log(`[startup] next spawn error: ${e.message}`);
+  sleepForever();
+});
+} catch (e) {
+  console.error(`[startup] FATAL: ${e.message}`);
+  console.error(e.stack);
+  sleepForever();
+}
