@@ -33,5 +33,8 @@ ENV PORT=3100
 
 EXPOSE 3100
 
+HEALTHCHECK --interval=30s --timeout=10s --start-period=90s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3100/api/health || exit 1
+
 # Start postgres, create db/user, then run startup
 CMD ["sh", "-c", "PGVER=$(ls /usr/lib/postgresql/ | head -1) && su postgres -c \"/usr/lib/postgresql/$PGVER/bin/pg_ctl -D /pgdata -l /tmp/pg.log start\" && sleep 3 && su postgres -c \"psql -c \\\"CREATE USER hms WITH PASSWORD 'hms' SUPERUSER;\\\"\" 2>/dev/null; su postgres -c \"psql -c 'CREATE DATABASE hms OWNER hms;'\" 2>/dev/null; node apps/web/startup.mjs"]
