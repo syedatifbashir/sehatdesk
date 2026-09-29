@@ -37,7 +37,7 @@ await new Promise((resolve, reject) => {
 });
 
 console.log("[startup] running migrations...");
-const mig = spawnSync("./node_modules/.bin/prisma", ["migrate", "deploy", "--schema", "packages/db/prisma/schema.prisma"], {
+const mig = spawnSync("pnpm", ["dlx", "prisma@6.0.0", "migrate", "deploy", "--schema", "packages/db/prisma/schema.prisma"], {
   stdio: "inherit",
   env: process.env,
 });
@@ -51,20 +51,21 @@ await prisma.$disconnect();
 
 if (hospitals === 0) {
   console.log("[startup] empty database — seeding demo data...");
-  const seed = spawnSync("./node_modules/.bin/prisma", ["db", "seed", "--schema", "packages/db/prisma/schema.prisma"], {
+  const seed = spawnSync("pnpm", ["dlx", "tsx", "packages/db/prisma/seed.ts"], {
     stdio: "inherit",
     env: process.env,
   });
   console.log(`[startup] seed exit code: ${seed.status}`);
-  if (seed.status !== 0) throw new Error(`prisma db seed failed with code ${seed.status}`);
+  if (seed.status !== 0) throw new Error(`seed failed with code ${seed.status}`);
 } else {
   console.log(`[startup] database already has ${hospitals} hospital(s) — skipping seed`);
 }
 
 console.log("[startup] starting next...");
-const next = spawn("./node_modules/.bin/next", ["start", "apps/web", "-p", "3100"], {
+const next = spawn("pnpm", ["--filter", "@hms/web", "start", "--", "-p", "3100"], {
   stdio: "inherit",
   env: process.env,
+  cwd: "/app",
 });
 next.on("exit", (code) => {
   console.log(`[startup] next exited with code ${code}`);
