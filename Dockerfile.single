@@ -1,8 +1,8 @@
 # Single-container: Node.js app + PostgreSQL (localhost, no network issues)
-FROM node:20-bookworm-slim
+FROM node:20-bookworm
 
-# Install PostgreSQL
-RUN apt-get update && apt-get install -y postgresql postgresql-contrib \
+# Install PostgreSQL + Prisma engine deps
+RUN apt-get update && apt-get install -y postgresql postgresql-contrib openssl \
     && rm -rf /var/lib/apt/lists/* \
     && mkdir -p /var/run/postgresql \
     && chown postgres:postgres /var/run/postgresql
