@@ -1,19 +1,28 @@
 services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3100:3100"
+    environment:
+      DATABASE_URL: postgresql://hms:hms@postgres:5432/hms
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?JWT_REFRESH_SECRET is required}
+      NODE_ENV: production
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
   postgres:
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: hms
       POSTGRES_PASSWORD: hms
       POSTGRES_DB: hms
-    ports:
-      - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
+    restart: unless-stopped
 
 volumes:
   pgdata:
