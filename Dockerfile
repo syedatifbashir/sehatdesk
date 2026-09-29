@@ -10,7 +10,7 @@ COPY apps/web/package.json apps/web/package.json
 COPY packages/db/package.json packages/db/package.json
 RUN pnpm install --no-frozen-lockfile
 COPY . .
-RUN pnpm exec prisma generate --schema packages/db/prisma/schema.prisma
+RUN pnpm dlx prisma@6.0.0 generate --schema packages/db/prisma/schema.prisma
 RUN pnpm --filter @hms/web build
 
 FROM base AS runner
