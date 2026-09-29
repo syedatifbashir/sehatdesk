@@ -1,0 +1,38 @@
+# Single-container: Node.js app + PostgreSQL (localhost, no network issues)
+FROM node:20-bookworm-slim
+
+# Install PostgreSQL
+RUN apt-get update && apt-get install -y postgresql postgresql-contrib \
+    && rm -rf /var/lib/apt/lists/* \
+    && mkdir -p /var/run/postgresql \
+    && chown postgres:postgres /var/run/postgresql
+
+RUN corepack enable && corepack prepare pnpm@9 --activate
+WORKDIR /app
+
+# Install dependencies
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+COPY apps/web/package.json apps/web/package.json
+COPY packages/db/package.json packages/db/package.json
+RUN pnpm install --frozen-lockfile
+
+# Build
+COPY . .
+RUN ./node_modules/.bin/prisma generate --schema packages/db/prisma/schema.prisma
+RUN pnpm --filter @hms/web build
+
+# Setup postgres data directory
+RUN mkdir -p /pgdata \
+    && chown postgres:postgres /pgdata \
+    && su postgres -c "/usr/lib/postgresql/15/bin/initdb -D /pgdata" \
+    && echo "host all all 127.0.0.1/32 trust" >> /pgdata/pg_hba.conf \
+    && echo "local all all trust" >> /pgdata/pg_hba.conf
+
+ENV NODE_ENV=production
+ENV DATABASE_URL=postgresql://postgres@localhost:5432/hms
+ENV PORT=3100
+
+EXPOSE 3100
+
+# Start postgres, create db, then run startup
+CMD ["sh", "-c", "su postgres -c '/usr/lib/postgresql/15/bin/pg_ctl -D /pgdata -l /tmp/pg.log start' && sleep 3 && su postgres -c \"psql -c 'CREATE DATABASE hms;'\" 2>/dev/null; node apps/web/startup.mjs"]
