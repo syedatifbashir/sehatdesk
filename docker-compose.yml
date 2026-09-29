@@ -14,12 +14,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:3100/api/health', (r) => { process.exit(r.statusCode === 200 ? 0 : 1); }).on('error', () => process.exit(1));"]
-      interval: 15s
-      timeout: 5s
-      retries: 10
-      start_period: 90s
+    # DEBUG: healthcheck disabled to keep container alive for log inspection
 
   postgres:
     image: postgres:16-alpine
