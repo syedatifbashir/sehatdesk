@@ -1,11 +1,9 @@
-# Single-container: Node.js app + PostgreSQL (localhost, no network issues)
+# Single-container: Node.js app + PostgreSQL on localhost
 FROM node:20-bookworm
 
-# Install PostgreSQL + Prisma engine deps
-RUN apt-get update && apt-get install -y postgresql postgresql-contrib openssl \
-    && rm -rf /var/lib/apt/lists/* \
-    && mkdir -p /var/run/postgresql \
-    && chown postgres:postgres /var/run/postgresql
+# Install PostgreSQL
+RUN apt-get update && apt-get install -y postgresql postgresql-contrib \
+    && rm -rf /var/lib/apt/lists/*
 
 RUN corepack enable && corepack prepare pnpm@9 --activate
 WORKDIR /app
@@ -14,25 +12,26 @@ WORKDIR /app
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
 COPY apps/web/package.json apps/web/package.json
 COPY packages/db/package.json packages/db/package.json
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --no-frozen-lockfile
 
 # Build
 COPY . .
-RUN ./node_modules/.bin/prisma generate --schema packages/db/prisma/schema.prisma
+RUN pnpm dlx prisma@6.0.0 generate --schema packages/db/prisma/schema.prisma
 RUN pnpm --filter @hms/web build
 
-# Setup postgres data directory
-RUN mkdir -p /pgdata \
-    && chown postgres:postgres /pgdata \
-    && su postgres -c "/usr/lib/postgresql/15/bin/initdb -D /pgdata" \
+# Setup postgres (use default Debian postgres version)
+RUN PGVER=$(ls /usr/lib/postgresql/ | head -1) && echo "Postgres version: $PGVER" \
+    && mkdir -p /pgdata /var/run/postgresql \
+    && chown -R postgres:postgres /pgdata /var/run/postgresql \
+    && su postgres -c "/usr/lib/postgresql/$PGVER/bin/initdb -D /pgdata" \
     && echo "host all all 127.0.0.1/32 trust" >> /pgdata/pg_hba.conf \
     && echo "local all all trust" >> /pgdata/pg_hba.conf
 
 ENV NODE_ENV=production
-ENV DATABASE_URL=postgresql://postgres@localhost:5432/hms
+ENV DATABASE_URL=postgresql://hms:hms@localhost:5432/hms
 ENV PORT=3100
 
 EXPOSE 3100
 
-# Start postgres, create db, then run startup
-CMD ["sh", "-c", "su postgres -c '/usr/lib/postgresql/15/bin/pg_ctl -D /pgdata -l /tmp/pg.log start' && sleep 3 && su postgres -c \"psql -c 'CREATE DATABASE hms;'\" 2>/dev/null; node apps/web/startup.mjs"]
+# Start postgres, create db/user, then run startup
+CMD ["sh", "-c", "PGVER=$(ls /usr/lib/postgresql/ | head -1) && su postgres -c \"/usr/lib/postgresql/$PGVER/bin/pg_ctl -D /pgdata -l /tmp/pg.log start\" && sleep 3 && su postgres -c \"psql -c \\\"CREATE USER hms WITH PASSWORD 'hms' SUPERUSER;\\\"\" 2>/dev/null; su postgres -c \"psql -c 'CREATE DATABASE hms OWNER hms;'\" 2>/dev/null; node apps/web/startup.mjs"]
