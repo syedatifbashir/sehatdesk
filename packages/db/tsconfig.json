@@ -1,0 +1,1 @@
+{"compilerOptions":{"esModuleInterop":true,"lib":["esnext"],"module":"NodeNext","moduleResolution":"NodeNext","noEmit":true,"resolveJsonModule":true,"skipLibCheck":true,"strict":true,"target":"ES2022"},"include":["src/**/*.ts","prisma/seed.ts"]}
